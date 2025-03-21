@@ -1,0 +1,35 @@
+{
+	"name": "src_insured",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "file_to_src_db",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [
+			{
+				"name": "InsuredId",
+				"type": "varchar"
+			},
+			{
+				"name": "InsuredName",
+				"type": "varchar"
+			},
+			{
+				"name": "City",
+				"type": "varchar"
+			},
+			{
+				"name": "Created",
+				"type": "datetime",
+				"precision": 23,
+				"scale": 3
+			}
+		],
+		"typeProperties": {
+			"schema": "dbo",
+			"table": "src_insured"
+		}
+	}
+}

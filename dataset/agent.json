@@ -1,0 +1,37 @@
+{
+	"name": "agent",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "file_to_src",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobStorageLocation",
+				"fileName": "Agent.csv",
+				"folderPath": "Input",
+				"container": "sourcefile"
+			},
+			"columnDelimiter": ",",
+			"escapeChar": "\\",
+			"firstRowAsHeader": true,
+			"quoteChar": "\""
+		},
+		"schema": [
+			{
+				"name": "AgentName",
+				"type": "String"
+			},
+			{
+				"name": "City",
+				"type": "String"
+			},
+			{
+				"name": "AgentID",
+				"type": "String"
+			}
+		]
+	}
+}

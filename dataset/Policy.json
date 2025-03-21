@@ -1,0 +1,45 @@
+{
+	"name": "Policy",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "file_to_src",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobStorageLocation",
+				"fileName": "Policy.csv",
+				"folderPath": "Input",
+				"container": "sourcefile"
+			},
+			"columnDelimiter": ",",
+			"escapeChar": "\\",
+			"firstRowAsHeader": true,
+			"quoteChar": "\""
+		},
+		"schema": [
+			{
+				"name": "PolicyNum",
+				"type": "String"
+			},
+			{
+				"name": "PremAmt",
+				"type": "String"
+			},
+			{
+				"name": "Commission",
+				"type": "String"
+			},
+			{
+				"name": "InsuredId",
+				"type": "String"
+			},
+			{
+				"name": "AgentId",
+				"type": "String"
+			}
+		]
+	}
+}

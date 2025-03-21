@@ -1,0 +1,45 @@
+{
+	"name": "src_policy",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "file_to_src_db",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [
+			{
+				"name": "Policynum",
+				"type": "varchar"
+			},
+			{
+				"name": "PremAmt",
+				"type": "int",
+				"precision": 10
+			},
+			{
+				"name": "Commission",
+				"type": "int",
+				"precision": 10
+			},
+			{
+				"name": "InsuredID",
+				"type": "varchar"
+			},
+			{
+				"name": "AgentID",
+				"type": "varchar"
+			},
+			{
+				"name": "Created",
+				"type": "datetime",
+				"precision": 23,
+				"scale": 3
+			}
+		],
+		"typeProperties": {
+			"schema": "dbo",
+			"table": "src_policy"
+		}
+	}
+}

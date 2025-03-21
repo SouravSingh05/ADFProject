@@ -1,0 +1,37 @@
+{
+	"name": "insured",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "file_to_src",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobStorageLocation",
+				"fileName": "Insured.csv",
+				"folderPath": "Input",
+				"container": "sourcefile"
+			},
+			"columnDelimiter": ",",
+			"escapeChar": "\\",
+			"firstRowAsHeader": true,
+			"quoteChar": "\""
+		},
+		"schema": [
+			{
+				"name": "InsuredId",
+				"type": "String"
+			},
+			{
+				"name": "InsuredName",
+				"type": "String"
+			},
+			{
+				"name": "City",
+				"type": "String"
+			}
+		]
+	}
+}
