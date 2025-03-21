@@ -1,0 +1,9 @@
+{
+	"name": "ADFProjectSourav05",
+	"location": "centralindia",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "d0ec7960-6cd4-4b80-8729-5d4ca63d26c4",
+		"tenantId": "d36a6859-3e24-4809-8c37-c159d81a750a"
+	}
+}
