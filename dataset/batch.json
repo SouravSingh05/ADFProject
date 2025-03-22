@@ -1,0 +1,34 @@
+{
+	"name": "batch",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "file_to_src_db",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [
+			{
+				"name": "BatchID",
+				"type": "int",
+				"precision": 10
+			},
+			{
+				"name": "StartTime",
+				"type": "datetime",
+				"precision": 23,
+				"scale": 3
+			},
+			{
+				"name": "EndTime",
+				"type": "datetime",
+				"precision": 23,
+				"scale": 3
+			}
+		],
+		"typeProperties": {
+			"schema": "dbo",
+			"table": "batch"
+		}
+	}
+}
