@@ -37,6 +37,9 @@
 				},
 				{
 					"name": "derivedColumn1"
+				},
+				{
+					"name": "filter1"
 				}
 			],
 			"scriptLines": [
@@ -50,11 +53,12 @@
 				"     format: 'query') ~> source1",
 				"source(output(",
 				"          BatchID as integer,",
-				"          StartTime as timestamp,",
-				"          EndTime as timestamp",
+				"          StartTime as string,",
+				"          EndTime as string",
 				"     ),",
 				"     allowSchemaDrift: true,",
 				"     validateSchema: false,",
+				"     waterMarkColumn: 'BatchID',",
 				"     isolationLevel: 'READ_UNCOMMITTED',",
 				"     format: 'table') ~> source2",
 				"source2 keyGenerate(output(BatchIDNew as long),",
@@ -62,6 +66,7 @@
 				"     stepValue: 1L) ~> surrogateKey1",
 				"surrogateKey1 derive(BatchID = toInteger(BatchIDNew + sink1#outputs()[1].MaxBatchID),",
 				"          StartTime = currentTimestamp()) ~> derivedColumn1",
+				"derivedColumn1 filter(BatchID==sink1#outputs()[1].MaxBatchID + 1) ~> filter1",
 				"source1 sink(validateSchema: false,",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true,",
@@ -69,7 +74,7 @@
 				"     format: 'inline',",
 				"     output: false,",
 				"     saveOrder: 1) ~> sink1",
-				"derivedColumn1 sink(allowSchemaDrift: true,",
+				"filter1 sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     input(",
 				"          BatchID as integer,",

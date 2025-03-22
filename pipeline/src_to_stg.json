@@ -23,10 +23,137 @@
 						"coreCount": 8,
 						"computeType": "General"
 					},
-					"traceLevel": "Fine"
+					"traceLevel": "Fine",
+					"continuationSettings": {
+						"customizedCheckpointKey": "f77495f0-7809-4c4b-9ff1-57980fbbd336"
+					}
+				}
+			},
+			{
+				"name": "Delta_Date_curr",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [
+					{
+						"activity": "Pre_batch_control",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "Delta_Date_Curr",
+						"type": "DataFlowReference"
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					},
+					"traceLevel": "None",
+					"cacheSinks": {
+						"firstRowOnly": true
+					}
+				}
+			},
+			{
+				"name": "Delta_Date_prev",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [
+					{
+						"activity": "Pre_batch_control",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "Delta_Date_Prev",
+						"type": "DataFlowReference"
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					},
+					"traceLevel": "None",
+					"cacheSinks": {
+						"firstRowOnly": true
+					}
+				}
+			},
+			{
+				"name": "Delta_Date_Set_Curr",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Delta_Date_curr",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "CurrBatchStartDate",
+					"value": {
+						"value": "@activity('Delta_Date_curr').output.runStatus.output.sink1.value[0].CurrBatchStartDate",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Delta_Date_Set_Prev",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Delta_Date_prev",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "PrevBatchStartDate",
+					"value": {
+						"value": "@activity('Delta_Date_prev').output.runStatus.output.sink2.value[0].PrevBatchStartDate",
+						"type": "Expression"
+					}
 				}
 			}
 		],
+		"variables": {
+			"CurrBatchStartDate": {
+				"type": "String"
+			},
+			"PrevBatchStartDate": {
+				"type": "String"
+			}
+		},
 		"annotations": []
 	}
 }
