@@ -22,9 +22,7 @@
 			},
 			{
 				"name": "Created",
-				"type": "datetime",
-				"precision": 23,
-				"scale": 3
+				"type": "varchar"
 			}
 		],
 		"typeProperties": {
