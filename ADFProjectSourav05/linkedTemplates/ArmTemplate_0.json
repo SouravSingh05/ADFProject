@@ -221,6 +221,45 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/batch')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "file_to_src_db",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "BatchID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "StartTime",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					},
+					{
+						"name": "EndTime",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "batch"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/file_to_src_db')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/src_agent')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -351,6 +390,84 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/stg_agent')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "file_to_src_db",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "AgentName",
+						"type": "varchar"
+					},
+					{
+						"name": "AgentCity",
+						"type": "varchar"
+					},
+					{
+						"name": "AgentID",
+						"type": "varchar"
+					},
+					{
+						"name": "Created",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "stg_agent"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/file_to_src_db')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/stg_insured')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "file_to_src_db",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "InsuredId",
+						"type": "varchar"
+					},
+					{
+						"name": "InsuredName",
+						"type": "varchar"
+					},
+					{
+						"name": "City",
+						"type": "varchar"
+					},
+					{
+						"name": "Created",
+						"type": "varchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "stg_insured"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/file_to_src_db')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/stg_policy')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -406,120 +523,93 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/stg_insured')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
+			"name": "[concat(parameters('factoryName'), '/Delta_Date_Curr')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
 			"apiVersion": "2018-06-01",
 			"properties": {
-				"linkedServiceName": {
-					"referenceName": "file_to_src_db",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "AzureSqlTable",
-				"schema": [
-					{
-						"name": "InsuredId",
-						"type": "varchar"
-					},
-					{
-						"name": "InsuredName",
-						"type": "varchar"
-					},
-					{
-						"name": "City",
-						"type": "varchar"
-					},
-					{
-						"name": "Created",
-						"type": "varchar"
-					}
-				],
+				"type": "MappingDataFlow",
 				"typeProperties": {
-					"schema": "dbo",
-					"table": "stg_insured"
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "batch",
+								"type": "DatasetReference"
+							},
+							"name": "source1"
+						}
+					],
+					"sinks": [
+						{
+							"name": "sink1"
+						}
+					],
+					"transformations": [],
+					"scriptLines": [
+						"source(output(",
+						"          CurrBatchStartDate as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     query: 'select StartTime as CurrBatchStartDate from [dbo].[batch] where BatchID=((select max(BatchID) from [dbo].[batch]))',",
+						"     format: 'query') ~> source1",
+						"source1 sink(validateSchema: false,",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     store: 'cache',",
+						"     format: 'inline',",
+						"     output: true,",
+						"     saveOrder: 1) ~> sink1"
+					]
 				}
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/file_to_src_db')]"
+				"[concat(variables('factoryId'), '/datasets/batch')]"
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/stg_agent')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
+			"name": "[concat(parameters('factoryName'), '/Delta_Date_Prev')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
 			"apiVersion": "2018-06-01",
 			"properties": {
-				"linkedServiceName": {
-					"referenceName": "file_to_src_db",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "AzureSqlTable",
-				"schema": [
-					{
-						"name": "AgentName",
-						"type": "varchar"
-					},
-					{
-						"name": "AgentCity",
-						"type": "varchar"
-					},
-					{
-						"name": "AgentID",
-						"type": "varchar"
-					},
-					{
-						"name": "Created",
-						"type": "datetime",
-						"precision": 23,
-						"scale": 3
-					}
-				],
+				"type": "MappingDataFlow",
 				"typeProperties": {
-					"schema": "dbo",
-					"table": "stg_agent"
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "batch",
+								"type": "DatasetReference"
+							},
+							"name": "source1"
+						}
+					],
+					"sinks": [
+						{
+							"name": "sink2"
+						}
+					],
+					"transformations": [],
+					"scriptLines": [
+						"source(output(",
+						"          PrevBatchStartDate as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     query: 'select StartTime as PrevBatchStartDate from [dbo].[batch] where BatchID=((select max(BatchID) from [dbo].[batch])-1)\\n',",
+						"     format: 'query') ~> source1",
+						"source1 sink(validateSchema: false,",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     store: 'cache',",
+						"     format: 'inline',",
+						"     output: true,",
+						"     saveOrder: 1) ~> sink2"
+					]
 				}
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/file_to_src_db')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/batch')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "file_to_src_db",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "AzureSqlTable",
-				"schema": [
-					{
-						"name": "BatchID",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "StartTime",
-						"type": "datetime",
-						"precision": 23,
-						"scale": 3
-					},
-					{
-						"name": "EndTime",
-						"type": "datetime",
-						"precision": 23,
-						"scale": 3
-					}
-				],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": "batch"
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/file_to_src_db')]"
+				"[concat(variables('factoryId'), '/datasets/batch')]"
 			]
 		},
 		{
@@ -803,96 +893,6 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/Delta_Date_Curr')]",
-			"type": "Microsoft.DataFactory/factories/dataflows",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"type": "MappingDataFlow",
-				"typeProperties": {
-					"sources": [
-						{
-							"dataset": {
-								"referenceName": "batch",
-								"type": "DatasetReference"
-							},
-							"name": "source1"
-						}
-					],
-					"sinks": [
-						{
-							"name": "sink1"
-						}
-					],
-					"transformations": [],
-					"scriptLines": [
-						"source(output(",
-						"          CurrBatchStartDate as string",
-						"     ),",
-						"     allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     isolationLevel: 'READ_UNCOMMITTED',",
-						"     query: 'select StartTime as CurrBatchStartDate from [dbo].[batch] where BatchID=((select max(BatchID) from [dbo].[batch]))',",
-						"     format: 'query') ~> source1",
-						"source1 sink(validateSchema: false,",
-						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true,",
-						"     store: 'cache',",
-						"     format: 'inline',",
-						"     output: true,",
-						"     saveOrder: 1) ~> sink1"
-					]
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/batch')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/Delta_Date_Prev')]",
-			"type": "Microsoft.DataFactory/factories/dataflows",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"type": "MappingDataFlow",
-				"typeProperties": {
-					"sources": [
-						{
-							"dataset": {
-								"referenceName": "batch",
-								"type": "DatasetReference"
-							},
-							"name": "source1"
-						}
-					],
-					"sinks": [
-						{
-							"name": "sink2"
-						}
-					],
-					"transformations": [],
-					"scriptLines": [
-						"source(output(",
-						"          PrevBatchStartDate as string",
-						"     ),",
-						"     allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     isolationLevel: 'READ_UNCOMMITTED',",
-						"     query: 'select StartTime as PrevBatchStartDate from [dbo].[batch] where BatchID=((select max(BatchID) from [dbo].[batch])-1)\\n',",
-						"     format: 'query') ~> source1",
-						"source1 sink(validateSchema: false,",
-						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true,",
-						"     store: 'cache',",
-						"     format: 'inline',",
-						"     output: true,",
-						"     saveOrder: 1) ~> sink2"
-					]
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/batch')]"
-			]
-		},
-		{
 			"name": "[concat(parameters('factoryName'), '/file_to_src')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -970,8 +970,7 @@
 									"source2": {},
 									"sink1": {},
 									"sink2": {}
-								},
-								"linkedServiceParameters": {}
+								}
 							},
 							"staging": {},
 							"compute": {
@@ -1111,6 +1110,91 @@
 								"type": "Expression"
 							}
 						}
+					},
+					{
+						"name": "src_to_Stg_insured",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Delta_Date_Set_Curr",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Delta_Date_Set_Prev",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[GetDataForDateRange1]",
+								"storedProcedureParameters": {
+									"EndDate": {
+										"type": "String",
+										"value": {
+											"value": "@variables('CurrBatchStartDate')",
+											"type": "Expression"
+										}
+									},
+									"StartDate": {
+										"type": "String",
+										"value": {
+											"value": "@variables('PrevBatchStartDate')",
+											"type": "Expression"
+										}
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"writeBehavior": "upsert",
+								"upsertSettings": {
+									"useTempDB": true,
+									"keys": [
+										"InsuredId"
+									]
+								},
+								"sqlWriterUseTableLock": false,
+								"disableMetricsCollection": false
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "src_insured",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "stg_insured",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
 					}
 				],
 				"policy": {
@@ -1129,7 +1213,9 @@
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/dataflows/pre_batch_control')]",
 				"[concat(variables('factoryId'), '/dataflows/Delta_Date_Curr')]",
-				"[concat(variables('factoryId'), '/dataflows/Delta_Date_Prev')]"
+				"[concat(variables('factoryId'), '/dataflows/Delta_Date_Prev')]",
+				"[concat(variables('factoryId'), '/datasets/src_insured')]",
+				"[concat(variables('factoryId'), '/datasets/stg_insured')]"
 			]
 		}
 	]
