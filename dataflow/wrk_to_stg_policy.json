@@ -5,14 +5,191 @@
 		"typeProperties": {
 			"sources": [
 				{
-					"name": "source1"
+					"dataset": {
+						"referenceName": "wrk_policy",
+						"type": "DatasetReference"
+					},
+					"name": "wrkpolicy"
+				},
+				{
+					"dataset": {
+						"referenceName": "stg_policy",
+						"type": "DatasetReference"
+					},
+					"name": "lkppolicy"
+				},
+				{
+					"dataset": {
+						"referenceName": "stg_policy",
+						"type": "DatasetReference"
+					},
+					"name": "maxtransidsrc"
 				}
 			],
-			"sinks": [],
-			"transformations": [],
+			"sinks": [
+				{
+					"name": "maxtransid"
+				},
+				{
+					"dataset": {
+						"referenceName": "stg_policy",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				},
+				{
+					"dataset": {
+						"referenceName": "stg_policy",
+						"type": "DatasetReference"
+					},
+					"name": "sink2"
+				}
+			],
+			"transformations": [
+				{
+					"name": "lookup1"
+				},
+				{
+					"name": "split1"
+				},
+				{
+					"name": "select1"
+				},
+				{
+					"name": "surrogateKey1"
+				},
+				{
+					"name": "derivedColumn1"
+				},
+				{
+					"name": "alterRow1"
+				}
+			],
 			"scriptLines": [
-				"source(allowSchemaDrift: true,",
-				"     validateSchema: false) ~> source1"
+				"source(output(",
+				"          Policynum as string,",
+				"          PremAmt as integer,",
+				"          Commission as integer,",
+				"          InsuredID as string,",
+				"          AgentID as string,",
+				"          Created as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> wrkpolicy",
+				"source(output(",
+				"          PolicyTransID as integer,",
+				"          Policynum as string,",
+				"          PremAmt as integer,",
+				"          Commission as integer,",
+				"          InsuredID as string,",
+				"          AgentID as string,",
+				"          Created as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> lkppolicy",
+				"source(output(",
+				"          MaxPolicyTransID as integer",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     query: 'select max(PolicyTransID) as MaxPolicyTransID from [dbo].[stg_policy]',",
+				"     format: 'query') ~> maxtransidsrc",
+				"wrkpolicy, lkppolicy lookup(wrkpolicy@Policynum == toString(lkppolicy@Policynum),",
+				"     multiple: true,",
+				"     broadcast: 'auto')~> lookup1",
+				"lookup1 split(isNull(PolicyTransID),",
+				"     disjoint: false) ~> split1@(New, Old)",
+				"split1@New select(mapColumn(",
+				"          Policynum = split1@New@Policynum,",
+				"          PremAmt = split1@New@PremAmt,",
+				"          Commission = split1@New@Commission,",
+				"          InsuredID = split1@New@InsuredID,",
+				"          AgentID = split1@New@AgentID,",
+				"          Created = split1@New@Created,",
+				"          PolicyTransID,",
+				"          Policynum = split1@New@Policynum,",
+				"          PremAmt = split1@New@PremAmt,",
+				"          Commission = split1@New@Commission,",
+				"          InsuredID = split1@New@InsuredID,",
+				"          AgentID = split1@New@AgentID,",
+				"          Created = split1@New@Created",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select1",
+				"select1 keyGenerate(output(NewTransID as long),",
+				"     startAt: 1L,",
+				"     stepValue: 1L) ~> surrogateKey1",
+				"surrogateKey1 derive(PolicyTransID = toInteger(maxtransid#outputs()[1].MaxPolicyTransID + NewTransID)) ~> derivedColumn1",
+				"split1@Old alterRow(updateIf(!isNull(PolicyTransID))) ~> alterRow1",
+				"maxtransidsrc sink(validateSchema: false,",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     store: 'cache',",
+				"     format: 'inline',",
+				"     output: false,",
+				"     saveOrder: 0) ~> maxtransid",
+				"derivedColumn1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          PolicyTransID as integer,",
+				"          Policynum as string,",
+				"          PremAmt as integer,",
+				"          Commission as integer,",
+				"          InsuredID as string,",
+				"          AgentID as string,",
+				"          Created as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          PolicyTransID,",
+				"          Policynum,",
+				"          PremAmt,",
+				"          Commission,",
+				"          InsuredID,",
+				"          AgentID,",
+				"          Created",
+				"     )) ~> sink1",
+				"alterRow1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          PolicyTransID as integer,",
+				"          Policynum as string,",
+				"          PremAmt as integer,",
+				"          Commission as integer,",
+				"          InsuredID as string,",
+				"          AgentID as string,",
+				"          Created as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:false,",
+				"     updateable:true,",
+				"     upsertable:false,",
+				"     keys:['Policynum'],",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          PolicyTransID,",
+				"          Policynum = split1@Old@Policynum,",
+				"          PremAmt = split1@Old@PremAmt,",
+				"          Commission = split1@Old@Commission,",
+				"          InsuredID = split1@Old@InsuredID,",
+				"          AgentID = split1@Old@AgentID,",
+				"          Created = split1@Old@Created",
+				"     )) ~> sink2"
 			]
 		}
 	}
