@@ -144,7 +144,7 @@
 				"          AgentName as string,",
 				"          AgentCity as string,",
 				"          AgentID as string,",
-				"          Created as timestamp",
+				"          Created as string",
 				"     ),",
 				"     deletable:false,",
 				"     insertable:true,",

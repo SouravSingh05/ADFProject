@@ -227,6 +227,165 @@
 						"type": "DatasetReference"
 					}
 				]
+			},
+			{
+				"name": "src_to_stg_agent",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Delta_Date_Set_Curr",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Delta_Date_Set_Prev",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderStoredProcedureName": "[dbo].[GetDataForDateRangeagent]",
+						"storedProcedureParameters": {
+							"End": {
+								"type": "String",
+								"value": {
+									"value": "@variables('CurrBatchStartDate')",
+									"type": "Expression"
+								}
+							},
+							"Start": {
+								"type": "String",
+								"value": {
+									"value": "@variables('PrevBatchStartDate')",
+									"type": "Expression"
+								}
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"writeBehavior": "upsert",
+						"upsertSettings": {
+							"useTempDB": true,
+							"keys": [
+								"AgentID"
+							]
+						},
+						"sqlWriterUseTableLock": false,
+						"disableMetricsCollection": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "src_agent",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "stg_agent",
+						"type": "DatasetReference"
+					}
+				]
+			},
+			{
+				"name": "src_wrk_policy",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Delta_Date_Set_Curr",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Delta_Date_Set_Prev",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderStoredProcedureName": "[dbo].[GetDataForDateRangePolcy]",
+						"storedProcedureParameters": {
+							"EndPolicy": {
+								"type": "String",
+								"value": {
+									"value": "@variables('CurrBatchStartDate')",
+									"type": "Expression"
+								}
+							},
+							"StartPolicy": {
+								"type": "String",
+								"value": {
+									"value": "@variables('PrevBatchStartDate')",
+									"type": "Expression"
+								}
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "src_policy",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "wrk_policy",
+						"type": "DatasetReference"
+					}
+				]
 			}
 		],
 		"variables": {
