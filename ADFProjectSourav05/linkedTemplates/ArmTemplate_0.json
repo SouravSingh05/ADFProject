@@ -506,9 +506,7 @@
 					},
 					{
 						"name": "Created",
-						"type": "datetime",
-						"precision": 23,
-						"scale": 3
+						"type": "varchar"
 					}
 				],
 				"typeProperties": {
@@ -939,6 +937,208 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/wrk_to_stg_policy')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "wrk_policy",
+								"type": "DatasetReference"
+							},
+							"name": "wrkpolicy"
+						},
+						{
+							"dataset": {
+								"referenceName": "stg_policy",
+								"type": "DatasetReference"
+							},
+							"name": "lkppolicy"
+						},
+						{
+							"dataset": {
+								"referenceName": "stg_policy",
+								"type": "DatasetReference"
+							},
+							"name": "maxtransidsrc"
+						}
+					],
+					"sinks": [
+						{
+							"name": "maxtransid"
+						},
+						{
+							"dataset": {
+								"referenceName": "stg_policy",
+								"type": "DatasetReference"
+							},
+							"name": "sink1"
+						},
+						{
+							"dataset": {
+								"referenceName": "stg_policy",
+								"type": "DatasetReference"
+							},
+							"name": "sink2"
+						}
+					],
+					"transformations": [
+						{
+							"name": "lookup1"
+						},
+						{
+							"name": "split1"
+						},
+						{
+							"name": "select1"
+						},
+						{
+							"name": "surrogateKey1"
+						},
+						{
+							"name": "derivedColumn1"
+						},
+						{
+							"name": "alterRow1"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          Policynum as string,",
+						"          PremAmt as integer,",
+						"          Commission as integer,",
+						"          InsuredID as string,",
+						"          AgentID as string,",
+						"          Created as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> wrkpolicy",
+						"source(output(",
+						"          PolicyTransID as integer,",
+						"          Policynum as string,",
+						"          PremAmt as integer,",
+						"          Commission as integer,",
+						"          InsuredID as string,",
+						"          AgentID as string,",
+						"          Created as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> lkppolicy",
+						"source(output(",
+						"          MaxPolicyTransID as integer",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     query: 'select max(PolicyTransID) as MaxPolicyTransID from [dbo].[stg_policy]',",
+						"     format: 'query') ~> maxtransidsrc",
+						"wrkpolicy, lkppolicy lookup(wrkpolicy@Policynum == toString(lkppolicy@Policynum),",
+						"     multiple: true,",
+						"     broadcast: 'auto')~> lookup1",
+						"lookup1 split(isNull(PolicyTransID),",
+						"     disjoint: false) ~> split1@(New, Old)",
+						"split1@New select(mapColumn(",
+						"          Policynum = split1@New@Policynum,",
+						"          PremAmt = split1@New@PremAmt,",
+						"          Commission = split1@New@Commission,",
+						"          InsuredID = split1@New@InsuredID,",
+						"          AgentID = split1@New@AgentID,",
+						"          Created = split1@New@Created,",
+						"          PolicyTransID,",
+						"          Policynum = split1@New@Policynum,",
+						"          PremAmt = split1@New@PremAmt,",
+						"          Commission = split1@New@Commission,",
+						"          InsuredID = split1@New@InsuredID,",
+						"          AgentID = split1@New@AgentID,",
+						"          Created = split1@New@Created",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> select1",
+						"select1 keyGenerate(output(NewTransID as long),",
+						"     startAt: 1L,",
+						"     stepValue: 1L) ~> surrogateKey1",
+						"surrogateKey1 derive(PolicyTransID = toInteger(maxtransid#outputs()[1].MaxPolicyTransID + NewTransID)) ~> derivedColumn1",
+						"split1@Old alterRow(updateIf(!isNull(PolicyTransID))) ~> alterRow1",
+						"maxtransidsrc sink(validateSchema: false,",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     store: 'cache',",
+						"     format: 'inline',",
+						"     output: false,",
+						"     saveOrder: 0) ~> maxtransid",
+						"derivedColumn1 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          PolicyTransID as integer,",
+						"          Policynum as string,",
+						"          PremAmt as integer,",
+						"          Commission as integer,",
+						"          InsuredID as string,",
+						"          AgentID as string,",
+						"          Created as string",
+						"     ),",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:false,",
+						"     upsertable:false,",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     errorHandlingOption: 'stopOnFirstError',",
+						"     mapColumn(",
+						"          PolicyTransID,",
+						"          Policynum,",
+						"          PremAmt,",
+						"          Commission,",
+						"          InsuredID,",
+						"          AgentID,",
+						"          Created",
+						"     )) ~> sink1",
+						"alterRow1 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          PolicyTransID as integer,",
+						"          Policynum as string,",
+						"          PremAmt as integer,",
+						"          Commission as integer,",
+						"          InsuredID as string,",
+						"          AgentID as string,",
+						"          Created as string",
+						"     ),",
+						"     deletable:false,",
+						"     insertable:false,",
+						"     updateable:true,",
+						"     upsertable:false,",
+						"     keys:['Policynum'],",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     errorHandlingOption: 'stopOnFirstError',",
+						"     mapColumn(",
+						"          PolicyTransID,",
+						"          Policynum = split1@Old@Policynum,",
+						"          PremAmt = split1@Old@PremAmt,",
+						"          Commission = split1@Old@Commission,",
+						"          InsuredID = split1@Old@InsuredID,",
+						"          AgentID = split1@Old@AgentID,",
+						"          Created = split1@Old@Created",
+						"     )) ~> sink2"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/wrk_policy')]",
+				"[concat(variables('factoryId'), '/datasets/stg_policy')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/file_to_src')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -986,449 +1186,6 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/dataflows/file_to_src')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/src_to_stg')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Pre_batch_control",
-						"type": "ExecuteDataFlow",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataflow": {
-								"referenceName": "pre_batch_control",
-								"type": "DataFlowReference",
-								"parameters": {},
-								"datasetParameters": {
-									"source1": {},
-									"source2": {},
-									"sink1": {},
-									"sink2": {}
-								}
-							},
-							"staging": {},
-							"compute": {
-								"coreCount": 8,
-								"computeType": "General"
-							},
-							"traceLevel": "Fine",
-							"continuationSettings": {
-								"customizedCheckpointKey": "f77495f0-7809-4c4b-9ff1-57980fbbd336"
-							}
-						}
-					},
-					{
-						"name": "Delta_Date_curr",
-						"type": "ExecuteDataFlow",
-						"dependsOn": [
-							{
-								"activity": "Pre_batch_control",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataflow": {
-								"referenceName": "Delta_Date_Curr",
-								"type": "DataFlowReference",
-								"parameters": {},
-								"datasetParameters": {
-									"source1": {},
-									"sink1": {}
-								}
-							},
-							"staging": {},
-							"compute": {
-								"coreCount": 8,
-								"computeType": "General"
-							},
-							"traceLevel": "None",
-							"cacheSinks": {
-								"firstRowOnly": true
-							}
-						}
-					},
-					{
-						"name": "Delta_Date_prev",
-						"type": "ExecuteDataFlow",
-						"dependsOn": [
-							{
-								"activity": "Pre_batch_control",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataflow": {
-								"referenceName": "Delta_Date_Prev",
-								"type": "DataFlowReference",
-								"parameters": {},
-								"datasetParameters": {
-									"source1": {},
-									"sink2": {}
-								}
-							},
-							"staging": {},
-							"compute": {
-								"coreCount": 8,
-								"computeType": "General"
-							},
-							"traceLevel": "None",
-							"cacheSinks": {
-								"firstRowOnly": true
-							}
-						}
-					},
-					{
-						"name": "Delta_Date_Set_Curr",
-						"type": "SetVariable",
-						"dependsOn": [
-							{
-								"activity": "Delta_Date_curr",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"variableName": "CurrBatchStartDate",
-							"value": {
-								"value": "@activity('Delta_Date_curr').output.runStatus.output.sink1.value[0].CurrBatchStartDate",
-								"type": "Expression"
-							}
-						}
-					},
-					{
-						"name": "Delta_Date_Set_Prev",
-						"type": "SetVariable",
-						"dependsOn": [
-							{
-								"activity": "Delta_Date_prev",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"variableName": "PrevBatchStartDate",
-							"value": {
-								"value": "@activity('Delta_Date_prev').output.runStatus.output.sink2.value[0].PrevBatchStartDate",
-								"type": "Expression"
-							}
-						}
-					},
-					{
-						"name": "src_to_Stg_insured",
-						"type": "Copy",
-						"dependsOn": [
-							{
-								"activity": "Delta_Date_Set_Curr",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "Delta_Date_Set_Prev",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[GetDataForDateRange1]",
-								"storedProcedureParameters": {
-									"EndDate": {
-										"type": "String",
-										"value": {
-											"value": "@variables('CurrBatchStartDate')",
-											"type": "Expression"
-										}
-									},
-									"StartDate": {
-										"type": "String",
-										"value": {
-											"value": "@variables('PrevBatchStartDate')",
-											"type": "Expression"
-										}
-									}
-								},
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "AzureSqlSink",
-								"writeBehavior": "upsert",
-								"upsertSettings": {
-									"useTempDB": true,
-									"keys": [
-										"InsuredId"
-									]
-								},
-								"sqlWriterUseTableLock": false,
-								"disableMetricsCollection": false
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "src_insured",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "stg_insured",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						]
-					},
-					{
-						"name": "src_to_stg_agent",
-						"type": "Copy",
-						"dependsOn": [
-							{
-								"activity": "Delta_Date_Set_Curr",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "Delta_Date_Set_Prev",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[GetDataForDateRangeagent]",
-								"storedProcedureParameters": {
-									"End": {
-										"type": "String",
-										"value": {
-											"value": "@variables('CurrBatchStartDate')",
-											"type": "Expression"
-										}
-									},
-									"Start": {
-										"type": "String",
-										"value": {
-											"value": "@variables('PrevBatchStartDate')",
-											"type": "Expression"
-										}
-									}
-								},
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "AzureSqlSink",
-								"writeBehavior": "upsert",
-								"upsertSettings": {
-									"useTempDB": true,
-									"keys": [
-										"AgentID"
-									]
-								},
-								"sqlWriterUseTableLock": false,
-								"disableMetricsCollection": false
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "src_agent",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "stg_agent",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						]
-					},
-					{
-						"name": "src_wrk_policy",
-						"type": "Copy",
-						"dependsOn": [
-							{
-								"activity": "Delta_Date_Set_Curr",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "Delta_Date_Set_Prev",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[GetDataForDateRangePolcy]",
-								"storedProcedureParameters": {
-									"EndPolicy": {
-										"type": "String",
-										"value": {
-											"value": "@variables('CurrBatchStartDate')",
-											"type": "Expression"
-										}
-									},
-									"StartPolicy": {
-										"type": "String",
-										"value": {
-											"value": "@variables('PrevBatchStartDate')",
-											"type": "Expression"
-										}
-									}
-								},
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "AzureSqlSink",
-								"writeBehavior": "insert",
-								"sqlWriterUseTableLock": false
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "src_policy",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "wrk_policy",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						]
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"variables": {
-					"CurrBatchStartDate": {
-						"type": "String"
-					},
-					"PrevBatchStartDate": {
-						"type": "String"
-					}
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/dataflows/pre_batch_control')]",
-				"[concat(variables('factoryId'), '/dataflows/Delta_Date_Curr')]",
-				"[concat(variables('factoryId'), '/dataflows/Delta_Date_Prev')]",
-				"[concat(variables('factoryId'), '/datasets/src_insured')]",
-				"[concat(variables('factoryId'), '/datasets/stg_insured')]",
-				"[concat(variables('factoryId'), '/datasets/src_agent')]",
-				"[concat(variables('factoryId'), '/datasets/stg_agent')]",
-				"[concat(variables('factoryId'), '/datasets/src_policy')]",
-				"[concat(variables('factoryId'), '/datasets/wrk_policy')]"
 			]
 		}
 	]

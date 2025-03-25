@@ -471,8 +471,10 @@
 							},
 							"sink": {
 								"type": "AzureSqlSink",
+								"preCopyScript": "delete from [dbo].[wrk_policy]",
 								"writeBehavior": "insert",
-								"sqlWriterUseTableLock": false
+								"sqlWriterUseTableLock": false,
+								"disableMetricsCollection": false
 							},
 							"enableStaging": false,
 							"translator": {
@@ -498,6 +500,47 @@
 								"parameters": {}
 							}
 						]
+					},
+					{
+						"name": "wrk_to_stg_policy",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [
+							{
+								"activity": "src_wrk_policy",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "wrk_to_stg_policy",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"wrkpolicy": {},
+									"lkppolicy": {},
+									"maxtransidsrc": {},
+									"maxtransid": {},
+									"sink1": {},
+									"sink2": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
 					}
 				],
 				"policy": {
@@ -522,7 +565,8 @@
 				"[concat(variables('factoryId'), '/datasets/src_agent')]",
 				"[concat(variables('factoryId'), '/datasets/stg_agent')]",
 				"[concat(variables('factoryId'), '/datasets/src_policy')]",
-				"[concat(variables('factoryId'), '/datasets/wrk_policy')]"
+				"[concat(variables('factoryId'), '/datasets/wrk_policy')]",
+				"[concat(variables('factoryId'), '/dataflows/wrk_to_stg_policy')]"
 			]
 		},
 		{
@@ -945,9 +989,7 @@
 					},
 					{
 						"name": "Created",
-						"type": "datetime",
-						"precision": 23,
-						"scale": 3
+						"type": "varchar"
 					}
 				],
 				"typeProperties": {
@@ -1429,6 +1471,208 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/linkedServices/file_to_src_db')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/wrk_to_stg_policy')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "wrk_policy",
+								"type": "DatasetReference"
+							},
+							"name": "wrkpolicy"
+						},
+						{
+							"dataset": {
+								"referenceName": "stg_policy",
+								"type": "DatasetReference"
+							},
+							"name": "lkppolicy"
+						},
+						{
+							"dataset": {
+								"referenceName": "stg_policy",
+								"type": "DatasetReference"
+							},
+							"name": "maxtransidsrc"
+						}
+					],
+					"sinks": [
+						{
+							"name": "maxtransid"
+						},
+						{
+							"dataset": {
+								"referenceName": "stg_policy",
+								"type": "DatasetReference"
+							},
+							"name": "sink1"
+						},
+						{
+							"dataset": {
+								"referenceName": "stg_policy",
+								"type": "DatasetReference"
+							},
+							"name": "sink2"
+						}
+					],
+					"transformations": [
+						{
+							"name": "lookup1"
+						},
+						{
+							"name": "split1"
+						},
+						{
+							"name": "select1"
+						},
+						{
+							"name": "surrogateKey1"
+						},
+						{
+							"name": "derivedColumn1"
+						},
+						{
+							"name": "alterRow1"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          Policynum as string,",
+						"          PremAmt as integer,",
+						"          Commission as integer,",
+						"          InsuredID as string,",
+						"          AgentID as string,",
+						"          Created as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> wrkpolicy",
+						"source(output(",
+						"          PolicyTransID as integer,",
+						"          Policynum as string,",
+						"          PremAmt as integer,",
+						"          Commission as integer,",
+						"          InsuredID as string,",
+						"          AgentID as string,",
+						"          Created as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> lkppolicy",
+						"source(output(",
+						"          MaxPolicyTransID as integer",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     query: 'select max(PolicyTransID) as MaxPolicyTransID from [dbo].[stg_policy]',",
+						"     format: 'query') ~> maxtransidsrc",
+						"wrkpolicy, lkppolicy lookup(wrkpolicy@Policynum == toString(lkppolicy@Policynum),",
+						"     multiple: true,",
+						"     broadcast: 'auto')~> lookup1",
+						"lookup1 split(isNull(PolicyTransID),",
+						"     disjoint: false) ~> split1@(New, Old)",
+						"split1@New select(mapColumn(",
+						"          Policynum = split1@New@Policynum,",
+						"          PremAmt = split1@New@PremAmt,",
+						"          Commission = split1@New@Commission,",
+						"          InsuredID = split1@New@InsuredID,",
+						"          AgentID = split1@New@AgentID,",
+						"          Created = split1@New@Created,",
+						"          PolicyTransID,",
+						"          Policynum = split1@New@Policynum,",
+						"          PremAmt = split1@New@PremAmt,",
+						"          Commission = split1@New@Commission,",
+						"          InsuredID = split1@New@InsuredID,",
+						"          AgentID = split1@New@AgentID,",
+						"          Created = split1@New@Created",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> select1",
+						"select1 keyGenerate(output(NewTransID as long),",
+						"     startAt: 1L,",
+						"     stepValue: 1L) ~> surrogateKey1",
+						"surrogateKey1 derive(PolicyTransID = toInteger(maxtransid#outputs()[1].MaxPolicyTransID + NewTransID)) ~> derivedColumn1",
+						"split1@Old alterRow(updateIf(!isNull(PolicyTransID))) ~> alterRow1",
+						"maxtransidsrc sink(validateSchema: false,",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     store: 'cache',",
+						"     format: 'inline',",
+						"     output: false,",
+						"     saveOrder: 0) ~> maxtransid",
+						"derivedColumn1 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          PolicyTransID as integer,",
+						"          Policynum as string,",
+						"          PremAmt as integer,",
+						"          Commission as integer,",
+						"          InsuredID as string,",
+						"          AgentID as string,",
+						"          Created as string",
+						"     ),",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:false,",
+						"     upsertable:false,",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     errorHandlingOption: 'stopOnFirstError',",
+						"     mapColumn(",
+						"          PolicyTransID,",
+						"          Policynum,",
+						"          PremAmt,",
+						"          Commission,",
+						"          InsuredID,",
+						"          AgentID,",
+						"          Created",
+						"     )) ~> sink1",
+						"alterRow1 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          PolicyTransID as integer,",
+						"          Policynum as string,",
+						"          PremAmt as integer,",
+						"          Commission as integer,",
+						"          InsuredID as string,",
+						"          AgentID as string,",
+						"          Created as string",
+						"     ),",
+						"     deletable:false,",
+						"     insertable:false,",
+						"     updateable:true,",
+						"     upsertable:false,",
+						"     keys:['Policynum'],",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     errorHandlingOption: 'stopOnFirstError',",
+						"     mapColumn(",
+						"          PolicyTransID,",
+						"          Policynum = split1@Old@Policynum,",
+						"          PremAmt = split1@Old@PremAmt,",
+						"          Commission = split1@Old@Commission,",
+						"          InsuredID = split1@Old@InsuredID,",
+						"          AgentID = split1@Old@AgentID,",
+						"          Created = split1@Old@Created",
+						"     )) ~> sink2"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/wrk_policy')]",
+				"[concat(variables('factoryId'), '/datasets/stg_policy')]"
 			]
 		}
 	]
