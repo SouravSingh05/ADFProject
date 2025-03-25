@@ -335,6 +335,169 @@
 								"parameters": {}
 							}
 						]
+					},
+					{
+						"name": "src_to_stg_agent",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Delta_Date_Set_Curr",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Delta_Date_Set_Prev",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[GetDataForDateRangeagent]",
+								"storedProcedureParameters": {
+									"End": {
+										"type": "String",
+										"value": {
+											"value": "@variables('CurrBatchStartDate')",
+											"type": "Expression"
+										}
+									},
+									"Start": {
+										"type": "String",
+										"value": {
+											"value": "@variables('PrevBatchStartDate')",
+											"type": "Expression"
+										}
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"writeBehavior": "upsert",
+								"upsertSettings": {
+									"useTempDB": true,
+									"keys": [
+										"AgentID"
+									]
+								},
+								"sqlWriterUseTableLock": false,
+								"disableMetricsCollection": false
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "src_agent",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "stg_agent",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					},
+					{
+						"name": "src_wrk_policy",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Delta_Date_Set_Curr",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Delta_Date_Set_Prev",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[GetDataForDateRangePolcy]",
+								"storedProcedureParameters": {
+									"EndPolicy": {
+										"type": "String",
+										"value": {
+											"value": "@variables('CurrBatchStartDate')",
+											"type": "Expression"
+										}
+									},
+									"StartPolicy": {
+										"type": "String",
+										"value": {
+											"value": "@variables('PrevBatchStartDate')",
+											"type": "Expression"
+										}
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "src_policy",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "wrk_policy",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
 					}
 				],
 				"policy": {
@@ -355,7 +518,11 @@
 				"[concat(variables('factoryId'), '/dataflows/Delta_Date_Curr')]",
 				"[concat(variables('factoryId'), '/dataflows/Delta_Date_Prev')]",
 				"[concat(variables('factoryId'), '/datasets/src_insured')]",
-				"[concat(variables('factoryId'), '/datasets/stg_insured')]"
+				"[concat(variables('factoryId'), '/datasets/stg_insured')]",
+				"[concat(variables('factoryId'), '/datasets/src_agent')]",
+				"[concat(variables('factoryId'), '/datasets/stg_agent')]",
+				"[concat(variables('factoryId'), '/datasets/src_policy')]",
+				"[concat(variables('factoryId'), '/datasets/wrk_policy')]"
 			]
 		},
 		{
@@ -557,9 +724,7 @@
 					},
 					{
 						"name": "Created",
-						"type": "datetime",
-						"precision": 23,
-						"scale": 3
+						"type": "varchar"
 					}
 				],
 				"typeProperties": {
@@ -1086,7 +1251,7 @@
 						"          AgentName as string,",
 						"          AgentCity as string,",
 						"          AgentID as string,",
-						"          Created as timestamp",
+						"          Created as string",
 						"     ),",
 						"     deletable:false,",
 						"     insertable:true,",
@@ -1216,6 +1381,54 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/datasets/batch')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/wrk_policy')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "file_to_src_db",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "Policynum",
+						"type": "varchar"
+					},
+					{
+						"name": "PremAmt",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "Commission",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "InsuredID",
+						"type": "varchar"
+					},
+					{
+						"name": "AgentID",
+						"type": "varchar"
+					},
+					{
+						"name": "Created",
+						"type": "varchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "wrk_policy"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/file_to_src_db')]"
 			]
 		}
 	]
